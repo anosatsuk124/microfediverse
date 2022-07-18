@@ -24,18 +24,11 @@ pub fn shutdown_server(state: State<'_, ServerState>) {
 
 #[tauri::command]
 pub async fn start_server(state: State<'_, ServerState>) -> Result<(), ()> {
-    {
-        *state.0.lock().unwrap() = true;
-    }
-    // We'll bind to 127.0.0.1:3000
+    *state.0.lock().unwrap() = true;
+
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
 
-    // A `Service` is needed for every connection, so this
-    // creates one from our `hello_world` function.
-    let make_svc = make_service_fn(|_conn| async {
-        // service_fn converts our function into a `Service`
-        Ok::<_, Infallible>(service_fn(hello_world))
-    });
+    let make_svc = make_service_fn(|_conn| async { Ok::<_, Infallible>(service_fn(hello_world)) });
 
     let server = Server::bind(&addr).serve(make_svc);
 
@@ -52,6 +45,7 @@ pub async fn start_server(state: State<'_, ServerState>) -> Result<(), ()> {
         .unwrap();
     });
 
+    println!("started");
     match graceful.await {
         Ok(_) => println!("shutdown"),
         Err(e) => println!("error: {e}"),
