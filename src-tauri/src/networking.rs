@@ -1,39 +1,41 @@
 use hyper::{
-    http,
-    server::{conn::AddrIncoming, Builder},
-    service::{make_service_fn, service_fn, Service},
-    Body, Request, Response, Server, StatusCode,
+    service::{make_service_fn, service_fn},
+    Body, Request, Response, Server,
 };
-use std::convert::Infallible;
-use std::future::Future;
-use std::net::SocketAddr;
-use std::sync::Mutex;
+use std::{
+    convert::Infallible,
+    net::SocketAddr,
+    sync::{Arc, Mutex},
+};
 use tauri::State;
-use tokio::sync::watch;
 
-pub struct ServerState(pub watch::Sender<bool>, pub Mutex<watch::Receiver<bool>>);
+pub struct ServerState(pub Arc<Mutex<bool>>);
 
 impl Default for ServerState {
     fn default() -> Self {
-        let (tx1, rx1) = watch::channel(false);
-        Self(tx1, Mutex::from(rx1))
+        Self(Arc::new(Mutex::new(false)))
     }
 }
 
-async fn shutdown(state: State<'_, ServerState>) {
-    let mut recv = state.1.lock().unwrap();
-    recv.changed().await.expect("msg");
+async fn shutdown(state: Arc<Mutex<bool>>) {
+    println!("graseful!");
+    loop {
+        if !state.lock().unwrap().clone() {
+            break;
+        }
+    }
+    println!("shutdown in shutdonw()!");
 }
 
 #[tauri::command]
 pub fn shutdown_server(state: State<'_, ServerState>) {
-    state.0.send(false);
+    *state.0.lock().unwrap() = false;
 }
 
 #[tauri::command]
 pub async fn start_server(state: State<'_, ServerState>) -> Result<(), ()> {
     {
-        state.0.send(true);
+        *state.0.lock().unwrap() = true;
     }
     // We'll bind to 127.0.0.1:3000
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
@@ -47,7 +49,14 @@ pub async fn start_server(state: State<'_, ServerState>) -> Result<(), ()> {
 
     let server = Server::bind(&addr).serve(make_svc);
 
-    let graceful = server.with_graceful_shutdown(shutdown(state));
+    let graceful = server.with_graceful_shutdown(async {
+        let state = state.0.clone();
+        tokio::spawn(async move {
+            shutdown(state).await;
+        })
+        .await
+        .unwrap();
+    });
 
     println!("started");
 
