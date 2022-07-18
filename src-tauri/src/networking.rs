@@ -17,16 +17,6 @@ impl Default for ServerState {
     }
 }
 
-async fn shutdown(state: Arc<Mutex<bool>>) {
-    println!("graseful!");
-    loop {
-        if !state.lock().unwrap().clone() {
-            break;
-        }
-    }
-    println!("shutdown in shutdonw()!");
-}
-
 #[tauri::command]
 pub fn shutdown_server(state: State<'_, ServerState>) {
     *state.0.lock().unwrap() = false;
@@ -52,13 +42,15 @@ pub async fn start_server(state: State<'_, ServerState>) -> Result<(), ()> {
     let graceful = server.with_graceful_shutdown(async {
         let state = state.0.clone();
         tokio::spawn(async move {
-            shutdown(state).await;
+            loop {
+                if !state.lock().unwrap().clone() {
+                    break;
+                }
+            }
         })
         .await
         .unwrap();
     });
-
-    println!("started");
 
     match graceful.await {
         Ok(_) => println!("shutdown"),
