@@ -4,13 +4,23 @@
 )]
 
 use networking::ServerState;
+use tauri::Manager;
 
 mod activitypub;
+mod error;
 mod networking;
 
 #[tokio::main]
 async fn main() {
     tauri::Builder::default()
+        .setup(|app| {
+            #[cfg(debug_assertions)]
+            {
+                let window = app.get_window("main").unwrap();
+                window.open_devtools();
+            }
+            Ok(())
+        })
         .manage(ServerState(Default::default()))
         .invoke_handler(tauri::generate_handler![
             crate::activitypub::object::test,

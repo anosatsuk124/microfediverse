@@ -1,3 +1,4 @@
+use crate::error;
 use hyper::{
     service::{make_service_fn, service_fn},
     Body, Request, Response, Server,
@@ -23,7 +24,7 @@ pub fn shutdown_server(state: State<'_, ServerState>) {
 }
 
 #[tauri::command]
-pub async fn start_server(state: State<'_, ServerState>) -> Result<(), ()> {
+pub async fn start_server(state: State<'_, ServerState>) -> Result<(), error::RustError> {
     *state.0.lock().unwrap() = true;
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
@@ -47,10 +48,9 @@ pub async fn start_server(state: State<'_, ServerState>) -> Result<(), ()> {
 
     println!("started");
     match graceful.await {
-        Ok(_) => println!("shutdown"),
-        Err(e) => println!("error: {e}"),
+        Ok(v) => Ok(v),
+        Err(err) => Err(error::RustError::from(error::HyperError::from(err))),
     }
-    Ok(())
 }
 
 async fn hello_world(_req: Request<Body>) -> Result<Response<Body>, Infallible> {

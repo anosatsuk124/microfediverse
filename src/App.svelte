@@ -1,7 +1,10 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/tauri";
   const start_server = async () => await invoke("start_server");
-  const shutdown_server = async () => await invoke("shutdown_server");
+  const shutdown_server = async () => {
+    const message = await invoke("shutdown_server");
+    console.log(message);
+  };
   const object_test = async () => await invoke("test");
 </script>
 
