@@ -7,6 +7,7 @@ use networking::ServerState;
 use tauri::Manager;
 
 mod activitypub;
+mod database;
 mod error;
 mod networking;
 
@@ -19,6 +20,9 @@ async fn main() {
                 let window = app.get_window("main").unwrap();
                 window.open_devtools();
             }
+            tokio::spawn(async {
+                crate::database::db_main().await;
+            });
             Ok(())
         })
         .manage(ServerState(Default::default()))
